@@ -1,0 +1,61 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> target;
+Texture2D <float4> background;
+struct Ray {
+    float3 Position;
+    float3 Direction;
+};
+
+struct RayHit {
+    float3 Position;
+    float Distance;
+};
+
+struct Sphere {
+    float3 Position;
+    float Radius;
+    float3 Colour;
+};
+
+float3 Intersect(Sphere s, Ray r) {
+
+    float3 black = float3(0, 0, 0);
+
+    float R2 = s.Radius * s.Radius;
+    float3 L = r.Position - s.Position;
+    float Tca = dot(L, r.Direction);
+    if (Tca < 0) return black;
+    float D2 = dot(L, L) - (Tca * Tca);
+    if(D2 > R2) return black;
+    float Thc = sqrt(R2 - D2);
+    float T0 = Tca - Thc;
+    float T1 = Tca + Thc;
+    if (T0 < 0) {
+        if (T1 < 0) {
+            return black;
+        }
+    }
+    return s.Colour;
+
+}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    Sphere sphere;
+    sphere.Position = float3(320, 240, -5);
+    sphere.Radius = 60;
+    sphere.Colour = float3(1, 1, 0);
+
+    Ray r;
+    r.Position = float3(id.x, id.y, 0);
+    r.Direction = float3(0, 0, 1);
+    float4 final = float4(0, 0, 0, 1);
+    final.xyz = Intersect(sphere, r);
+
+    target[id.xy] = final;
+}
