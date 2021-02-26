@@ -10,13 +10,17 @@ public class Listener : MonoBehaviour
         source = gameObject.AddComponent<AudioSource>();
     }
 
+
+
     public void AudioRayHit(RT.AudioRay _ray)
     {
         if (source.isPlaying)
             return;
-        source.volume = 20 * Mathf.Log10(_ray.distanceFromSource / 1.0f);
+        print(_ray.distance);
+        source.volume = 1 / (_ray.distance * _ray.distance);
         //print(_ray.currVolume);
         source.clip = _ray.clip;
         source.Play();
+
     }
 }

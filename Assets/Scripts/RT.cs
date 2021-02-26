@@ -7,13 +7,11 @@ public class RT : MonoBehaviour
 {
     public struct AudioRay
     {
-        public Ray prevRay;
         public Ray currRay;
         public AudioClip clip;
-        public float distanceFromSource;
-        public float currVolume;
-        public float i1, i2;
-        public float r1, r2;
+        public Vector3 origin;
+        public float distance;
+        public float energy;
     }
 
     //Cache the distance from the source, the amount of bounces, the properties of those bounces into a texture.
@@ -23,6 +21,8 @@ public class RT : MonoBehaviour
     private RenderTexture renderTarget;
 
     public AudioClip clip;
+    public GameObject player;
+    public Listener listener;
     List<AudioRay> rays;
     List<RaycastHit> hits;
     public int max = 500;
@@ -31,7 +31,8 @@ public class RT : MonoBehaviour
 
     private void Start()
     {
-        
+        listener = player.GetComponent<Listener>();
+        Random.InitState((int)Time.time * 27389);
     }
 
     void FixedUpdate()
@@ -46,12 +47,13 @@ public class RT : MonoBehaviour
         AudioRay ar = new AudioRay();
         ar.currRay = r;
         ar.clip = clip;
-        ar.currVolume = 1;
+        ar.origin = transform.position;
+        ar.distance = 0;
+        ar.energy = 100;
+        float dist = Vector3.Distance(ar.origin, player.transform.position);
+        
         if (Physics.Raycast(r, out hit, 100, ~8))
         {
-            ar.distanceFromSource = hit.distance;
-            ar.i1 = ar.distanceFromSource;
-
             rays.Add(ar);
             hits.Add(hit);
             RayTrace(ar, hit, maxBounces);
@@ -67,7 +69,7 @@ public class RT : MonoBehaviour
             Gizmos.DrawCube(transform.position, Vector3.one);
             for (int i = 0; i < rays.Count - 1; i++)
             {
-                Debug.DrawRay(rays[i].currRay.origin,  rays[i].currRay.direction.normalized * hits[i].distance, Color.Lerp(Color.green, Color.red, (float)i / rays.Count));
+                Debug.DrawRay(rays[i].currRay.origin,  rays[i].currRay.direction.normalized * hits[i].distance, Color.Lerp(Color.green, Color.red, rays[i].energy));
             }
             Gizmos.color = Color.magenta;
             Gizmos.DrawCube(rays[rays.Count - 1].currRay.origin, Vector3.one);
@@ -86,18 +88,29 @@ public class RT : MonoBehaviour
 
         if (Physics.Raycast(r, out hit, 100, ~8))
         {
+            Wall wall;
+            if ((wall = hit.transform.GetComponent<Wall>()) != null)
+            {
+                float energyLost = _ray.energy * (wall.physics.material.absorption * 0.01f);
+                print($"Energy lost: {energyLost}");
+                _ray.energy -= energyLost;
+            }
+
             if (hit.transform.tag == "Player")
             {
+                _ray.distance += Vector3.Distance(hit.point, transform.position);
                 Listener l = hit.transform.GetComponent<Listener>();
                 l.AudioRayHit(_ray);
                 return;
             }
             AudioRay newRay = new AudioRay();
-            newRay.prevRay = _ray.currRay;
             newRay.currRay = r;
             newRay.clip = _ray.clip;
-            newRay.distanceFromSource = _ray.distanceFromSource + (hit.distance);
-            newRay.currVolume = _ray.currVolume - 20 * Mathf.Log10(newRay.distanceFromSource / _ray.distanceFromSource);
+            newRay.origin = hit.point;
+            newRay.energy = _ray.energy;
+            float dist = Vector3.Distance(hit.point, transform.position);
+            newRay.distance = _ray.distance + dist;
+            _ray.clip = null;
             rays.Add(newRay);
             hits.Add(hit);
             RayTrace(newRay, hit, _bouncesLeft - 1);
