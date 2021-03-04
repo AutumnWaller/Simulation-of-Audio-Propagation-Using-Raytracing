@@ -1,0 +1,107 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+Texture2D<float4> skyboxTexture;
+SamplerState sampler_skyboxTexture;
+static const float PI = 3.14159265f;
+float4x4 worldMat;
+float4x4 inverseProjMat;
+
+struct Ray {
+    float3 origin;
+    float3 direction;
+};
+
+Ray CreateRay(float3 _origin, float3 _direction) {
+    Ray r;
+    r.origin = _origin;
+    r.direction = _direction;
+    return r;
+}
+
+Ray CreateCameraRay(float2 _texCoords) {
+    float3 origin = mul(worldMat, float4(0.0f, 0.0f, 0.0f, 1.0f)).xyz;
+    float3 dir = mul(inverseProjMat, float4(_texCoords, 0.0f, 1.0f)).xyz;
+    dir = mul(worldMat, float4(dir, 0.0f)).xyz;
+    dir = normalize(dir);
+    return CreateRay(origin, dir);
+}
+
+struct RayHit {
+    float3 position;
+    float distance;
+    float3 normal;
+};
+
+RayHit CreateRayHit() {
+    RayHit hit;
+    hit.position = float3(0.0f, 0.0f, 0.0f);
+    hit.distance = 999999;
+    hit.normal = float3(0.0f, 0.0f, 0.0f);
+    return hit;
+}
+
+struct Cuboid {
+    float3 pos;
+    float3 scale;
+    float3 colour;
+
+};
+
+Cuboid CreateCuboid(float3 _pos, float3 _scale, float3 _colour) {
+    Cuboid cuboid;
+    cuboid.pos = _pos;
+    cuboid.scale = _scale;
+    cuboid.colour = _colour;
+    return cuboid;
+}
+
+void AABBIntersect(Ray _ray, inout RayHit _rayHit, Cuboid _cuboid) {
+    float3 i = _cuboid.pos * _cuboid.scale;
+    
+}
+
+
+
+void IntersectGroundPlane(Ray _ray, inout RayHit _rayHit) {
+    float dist = -_ray.origin.y / _ray.direction.y;
+    if (dist > 0 && dist < _rayHit.distance) {
+        _rayHit.distance = dist;
+        _rayHit.position = _ray.origin + dist * _ray.direction;
+        _rayHit.normal = float3(0.0f, 1.0f, 0.0f);
+    }
+}
+
+float3 Shade(inout Ray _ray, RayHit _rayHit) {
+    if (_rayHit.distance < 999999) {
+        return _rayHit.normal;
+    }
+    else {
+        float theta = acos(_ray.direction.y) / -PI;
+        float phi = atan2(_ray.direction.x, -_ray.direction.x) / -PI * 0.5f;
+        return skyboxTexture.SampleLevel(sampler_skyboxTexture, float2(phi, theta), 0).xyz;
+    }
+}
+
+RayHit Trace(Ray _ray) {
+    RayHit rayHit = CreateRayHit();
+    IntersectGroundPlane(_ray, rayHit);
+    return rayHit;
+}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint width;
+    uint height;
+    Result.GetDimensions(width, height);
+    float2 texCoords = float2((id.xy + float2(0.5f, 0.5f)) / float2(width, height) * 2.0f - 1.0f);
+
+    Ray r = CreateCameraRay(texCoords);
+    RayHit hit = Trace(r);
+    float3 result = Shade(r, hit);
+    Result[id.xy] = float4(result.xyz, 1);
+}

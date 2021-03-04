@@ -925,8 +925,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1049473843}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -32.734, y: 0.38, z: -21.237}
-  m_LocalScale: {x: 5.0372844, y: 0.9999996, z: 4.101993}
+  m_LocalPosition: {x: -21.332, y: 0.38, z: -10.644}
+  m_LocalScale: {x: 2.5916688, y: 0.9999996, z: 2.0907187}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 2
@@ -1445,6 +1445,7 @@ GameObject:
   - component: {fileID: 1485213538}
   - component: {fileID: 1485213537}
   - component: {fileID: 1485213536}
+  - component: {fileID: 1485213539}
   m_Layer: 0
   m_Name: Player
   m_TagString: MainCamera
@@ -1511,13 +1512,26 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1485213535}
   m_LocalRotation: {x: 0.092727266, y: -0.70100045, z: 0.092727266, w: 0.70100045}
-  m_LocalPosition: {x: -17.6, y: 2.8, z: -4}
+  m_LocalPosition: {x: -17.67, y: 2.8, z: -10.25}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1336550657}
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 15.071, y: -90, z: 0}
+--- !u!114 &1485213539
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1485213535}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce6376d2e01c76248aaa085213529845, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_rtShader: {fileID: 7200000, guid: 4babe7f3ed376dc4ab0c19954d33ccc4, type: 3}
 --- !u!1 &1487569586
 GameObject:
   m_ObjectHideFlags: 0
@@ -1637,8 +1651,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1641119706}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -4.71, y: 0, z: -0.02}
+  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_Children:
   - {fileID: 893261706}
   - {fileID: 1758253581}
@@ -1838,7 +1852,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1826392616}
   m_LocalRotation: {x: 0, y: 0.17934668, z: 0, w: -0.9837859}
-  m_LocalPosition: {x: -15.18, y: 0.81, z: -3.94}
+  m_LocalPosition: {x: -23.46, y: 0.81, z: -7.27}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -1862,7 +1876,7 @@ MonoBehaviour:
   clip: {fileID: 8300000, guid: c0eea276049a5974fa7d9daaea069231, type: 3}
   player: {fileID: 1336550656}
   listener: {fileID: 0}
-  max: 500
+  max: 20
   direction: {x: 0, y: 0, z: 0}
 --- !u!1 &1986366844
 GameObject:
