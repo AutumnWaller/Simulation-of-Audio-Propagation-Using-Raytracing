@@ -66,14 +66,14 @@ void Swap(inout float _a, inout float _b) {
 }
 
 void AABBIntersect(Ray _ray, inout RayHit _rayHit, Cuboid _cuboid) {
-    float tXMin = (_cuboid.min.x - _ray.origin.x) / _ray.direction.x;
-    float tXMax = (_cuboid.max.x - _ray.origin.x) / _ray.direction.x;
+    float tXMin = (_cuboid.min.x - _ray.origin.x) / -_ray.direction.x;
+    float tXMax = (_cuboid.max.x - _ray.origin.x) / -_ray.direction.x;
 
     if (tXMin > tXMax)
         Swap(tXMin, tXMax);
 
-    float tYMin = (_cuboid.min.y - _ray.origin.y) / _ray.direction.y;
-    float tYMax = (_cuboid.max.y - _ray.origin.y) / _ray.direction.y;
+    float tYMin = (_cuboid.min.y - _ray.origin.y) / -_ray.direction.y;
+    float tYMax = (_cuboid.max.y - _ray.origin.y) / -_ray.direction.y;
 
     if (tYMin > tYMax)
         Swap(tYMin, tYMax);
@@ -87,13 +87,13 @@ void AABBIntersect(Ray _ray, inout RayHit _rayHit, Cuboid _cuboid) {
     if (tYMax < tXMax)
         tXMax = tYMax;
 
-    float tZMin = (_cuboid.min.z - _ray.origin.z) / _ray.direction.z;
-    float tZMax = (_cuboid.max.z - _ray.origin.z) / _ray.direction.z;
+    float tZMin = (_cuboid.min.z - _ray.origin.z) / -_ray.direction.z;
+    float tZMax = (_cuboid.max.z - _ray.origin.z) / -_ray.direction.z;
     
     if (tZMin > tZMax)
         Swap(tZMin, tZMax);
 
-    if (tXMax > tZMax || tZMin > tXMax)
+    if (tXMin > tZMax || tZMin > tXMax)
         return;
 
     if (tZMin > tXMin)
@@ -126,7 +126,7 @@ void AABBIntersect(Ray _ray, inout RayHit _rayHit, Cuboid _cuboid) {
 
 
     _rayHit.normal = _cuboid.colour;
-    _rayHit.position = _ray.origin + float3(tXMin, tYMin, tZMin);
+    _rayHit.position =  float3(tXMin, tYMin, tZMin);
     _rayHit.distance = _ray.origin.x + _ray.direction.x;
 
 
@@ -147,12 +147,11 @@ float3 Shade(inout Ray _ray, RayHit _rayHit) {
     if (_rayHit.distance < 999999) {
         return _rayHit.normal;
     }
-    //else {
-    //    float theta = acos(_ray.direction.y) / -PI;
-    //    float phi = atan2(_ray.direction.x, -_ray.direction.x) / -PI * 0.5f;
-    //    return skyboxTexture.SampleLevel(sampler_skyboxTexture, float2(phi, theta), 0).xyz;
-    //}
-    return float3(0, 0, 0);
+    else {
+        float theta = acos(_ray.direction.y) / -PI;
+        float phi = atan2(_ray.direction.x, _ray.direction.z) / -PI * 0.5f;
+        return skyboxTexture.SampleLevel(sampler_skyboxTexture, float2(phi, theta), 0).xyz;
+    }
 }
 
 RayHit Trace(Ray _ray) {
