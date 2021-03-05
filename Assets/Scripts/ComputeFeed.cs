@@ -5,7 +5,7 @@ using UnityEngine;
 public class ComputeFeed : MonoBehaviour
 {
     public ComputeShader m_rtShader;
-    public Texture2D m_skyboxTexture;
+    public Texture2D m_skyboxTexture, m_grassTexture;
     private RenderTexture m_renderTarget;
 
     private Camera m_camera;
@@ -19,6 +19,7 @@ public class ComputeFeed : MonoBehaviour
         m_rtShader.SetMatrix("worldMat", m_camera.cameraToWorldMatrix);
         m_rtShader.SetMatrix("inverseProjMat", m_camera.projectionMatrix.inverse);
         m_rtShader.SetTexture(0, "skyboxTexture", m_skyboxTexture);
+        m_rtShader.SetTexture(0, "grassTexture", m_grassTexture);
     }
 
     private void OnRenderImage(RenderTexture _source, RenderTexture _destination)
