@@ -11,32 +11,25 @@ SamplerState sampler_grassTexture;
 static const float PI = 3.14159265f;
 float4x4 worldMat;
 float4x4 inverseProjMat;
+float4 directionalLight;
+float4 wallNormals;
+float4 wallPositions;
+float3 minBounds;
+float3 maxBounds;
+float MAX = 999999;
 
 struct Ray {
     float3 origin;
     float3 direction;
+    float3 energy;
 };
 
-struct Light {
-    float3 pos;
-    float3 dir;
-    float3 colour;
-    float intensity;
-};
-
-Light CreateLight(float3 _pos, float3 _dir, float3 _colour, float _intensity) {
-    Light l;
-    l.pos = _pos;
-    l.dir = _dir;
-    l.colour = _colour;
-    l.intensity = _intensity;
-    return l;
-}
 
 Ray CreateRay(float3 _origin, float3 _direction) {
     Ray r;
     r.origin = _origin;
     r.direction = _direction;
+    r.energy = float3(1.0f, 1.0f, 1.0f);
     return r;
 }
 
@@ -57,7 +50,7 @@ struct RayHit {
 RayHit CreateRayHit() {
     RayHit hit;
     hit.position = float3(0.0f, 0.0f, 0.0f);
-    hit.distance = 999999;
+    hit.distance = MAX;
     hit.normal = float3(0.0f, 0.0f, 0.0f);
     return hit;
 }
@@ -84,8 +77,10 @@ void Swap(inout float _a, inout float _b) {
 }
 
 void AABBIntersect(Ray _ray, inout RayHit _rayHit, Cuboid _cuboid) {
+
     float tXMin = (_cuboid.min.x - _ray.origin.x) / -_ray.direction.x;
     float tXMax = (_cuboid.max.x - _ray.origin.x) / -_ray.direction.x;
+
 
     if (tXMin > tXMax)
         Swap(tXMin, tXMax);
@@ -108,6 +103,7 @@ void AABBIntersect(Ray _ray, inout RayHit _rayHit, Cuboid _cuboid) {
     float tZMin = (_cuboid.min.z - _ray.origin.z) / -_ray.direction.z;
     float tZMax = (_cuboid.max.z - _ray.origin.z) / -_ray.direction.z;
     
+
     if (tZMin > tZMax)
         Swap(tZMin, tZMax);
 
@@ -120,70 +116,62 @@ void AABBIntersect(Ray _ray, inout RayHit _rayHit, Cuboid _cuboid) {
     if (tZMax < tXMax)
         tXMax = tZMax;
 
-    //float intersectMinX = (_cuboid.min.x - _ray.origin.x) / _ray.direction.x;
-    //float intersectMinY = (_cuboid.min.y - _ray.origin.y) / _ray.direction.y;
-    //float intersectMinZ = (_cuboid.min.z - _ray.origin.z) / _ray.direction.z; 
-    //float intersectMaxX = (_cuboid.max.x - _ray.origin.x) / _ray.direction.x;
-    //float intersectMaxY = (_cuboid.max.y - _ray.origin.y) / _ray.direction.y;
-    //float intersectMaxZ = (_cuboid.max.z - _ray.origin.z) / _ray.direction.z;
-
-    //float intersectMin = max(intersectMinX, intersectMinY);
-    //float intersectMax = min(intersectMinX, intersectMinY);
-
-    //if (intersectMinX > intersectMaxY || intersectMinY > intersectMaxX)
-    //    return;
-
-    //if (intersectMin > intersectMaxZ || intersectMinZ > intersectMax)
-    //    return;
-
-    //if (intersectMinZ > intersectMin)
-    //    intersectMin = intersectMinZ;
-
-    //if (intersectMaxZ < intersectMax)
-    //    intersectMax = intersectMaxZ;
-
-
-    _rayHit.normal = _cuboid.colour;
-    _rayHit.position =  float3(tXMin, tYMin, tZMin);
-    _rayHit.distance = tXMin;
-    _rayHit.normal -= (_rayHit.distance * 0.02f);
-
-
+    float dist = (tXMin)+(tYMin)+(tZMin);
+    if (dist > _rayHit.distance || dist > 0)
+        return;
+    _rayHit.normal = normalize(_rayHit.position - _ray.direction);
+    _rayHit.position = wallPositions.xyz;
+    _rayHit.distance = dist;
 }
 
 
 
-void IntersectGroundPlane(Ray _ray, inout RayHit _rayHit, float2 _texCoords) {
+void IntersectGroundPlane(Ray _ray, inout RayHit _rayHit) {
     float dist = -_ray.origin.y / _ray.direction.y;
     if (dist > 0 && dist < _rayHit.distance) {
         _rayHit.distance = dist;
         _rayHit.position = _ray.origin + dist * _ray.direction;
-        _rayHit.normal = grassTexture.SampleLevel(sampler_grassTexture, _texCoords, 0).xyz;
-        _rayHit.normal -= (dist * 0.02f);
+        _rayHit.normal = float3(0, 1, 0);
     }
 }
 
+
+
+RayHit Trace(Ray _ray) {
+    RayHit rayHit = CreateRayHit();
+    Cuboid cuboid = CreateCuboid(float3(0, 0, 0), minBounds, maxBounds);
+    //Cuboid cuboid2 = CreateCuboid(float3(5, 0, 0), float3(2.5f, 1, 6), float3(0.5f, 0.5f, 0.2f));
+    AABBIntersect(_ray, rayHit, cuboid);
+    //AABBIntersect(_ray, rayHit, cuboid2);
+    IntersectGroundPlane(_ray, rayHit);
+    return rayHit;
+}
+
 float3 Shade(inout Ray _ray, RayHit _rayHit) {
-    if (_rayHit.distance < 999999) {
-        return _rayHit.normal;
+    if (_rayHit.distance < MAX) {
+        float3 specular = float3(0.6f, 0.6f, 0.6f);
+        float3 albedo = float3(0.8f, 0.8f, 0.8f);
+        _ray.origin = _rayHit.position + _rayHit.normal * 0.001f;
+        _ray.direction = reflect(_ray.direction, _rayHit.normal);
+        _ray.energy *= specular;
+        bool shadow = false;
+        Ray shadowRay = CreateRay(_rayHit.position + _rayHit.normal * 0.001f, -1 * directionalLight.xyz);
+        RayHit shadowHit = Trace(shadowRay);
+        if (shadowHit.distance != MAX) {
+            return float3(0.0f, 0.0f, 0.0f);
+        }
+        return saturate(dot(_rayHit.normal, directionalLight.xyz) * -1) * directionalLight.w * albedo;
     }
     else {
+        _ray.energy = float3(0, 0, 0);
         float theta = acos(_ray.direction.y) / -PI;
         float phi = atan2(_ray.direction.x, _ray.direction.z) / -PI * 0.5f;
         return skyboxTexture.SampleLevel(sampler_skyboxTexture, float2(phi, theta), 0).xyz;
     }
 }
 
-RayHit Trace(Ray _ray, float2 _texCoords) {
-    RayHit rayHit = CreateRayHit();
-    Cuboid cuboid = CreateCuboid(float3(0, 0, 0), float3(1, 3, 10), float3(0.5f, 0.5f, 0.2f));
-    AABBIntersect(_ray, rayHit, cuboid);
-    IntersectGroundPlane(_ray, rayHit, _texCoords);
-    return rayHit;
-}
-
-void Lighting(Light _light, inout RayHit _rayHit) {
-    _rayHit.normal -= saturate(dot(_rayHit.normal, _light.dir.xyz) * -1);
+void Lighting(float4 _light, inout RayHit _rayHit) {
+    _rayHit.normal -= saturate(dot(_rayHit.normal, _light.xyz) * -1);
 }
 
 [numthreads(8,8,1)]
@@ -194,11 +182,15 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     Result.GetDimensions(width, height);
     float2 texCoords = float2((id.xy + float2(0.5f, 0.5f)) / float2(width, height) * 2.0f - 1.0f);
 
-    Light light = CreateLight(float3(0, 1, 0), float3(1, -0.5f, 0), float3(1, 1, 1), 1);
-
+    float3 result = float3(0, 0, 0);
     Ray r = CreateCameraRay(texCoords);
-    RayHit hit = Trace(r, texCoords);
-    float3 result = Shade(r, hit);
-    Lighting(light, hit);
-    Result[id.xy] = float4(hit.normal.xyz, 1);
+
+    for (int i = 0; i < 8; i++) {
+        RayHit hit = Trace(r);
+        result += r.energy * Shade(r, hit);
+        Lighting(directionalLight, hit);
+        if (r.energy.x == 0 && r.energy.y == 0 && r.energy.z == 0)
+            break;
+    }
+    Result[id.xy] = float4(result, 1);
 }
