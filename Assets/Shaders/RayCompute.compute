@@ -5,18 +5,13 @@
 // with cs.SetTexture
 RWTexture2D<float4> Result;
 Texture2D<float4> skyboxTexture;
-Texture2D<float4> grassTexture;
 SamplerState sampler_skyboxTexture;
-SamplerState sampler_grassTexture;
 static const float PI = 3.14159265f;
 float4x4 worldMat;
 float4x4 inverseProjMat;
 float4 directionalLight;
-float4 wallNormals;
-float4 wallPositions;
 float3 minBounds;
 float3 maxBounds;
-float MAX = 999999;
 
 struct Ray {
     float3 origin;
@@ -50,7 +45,7 @@ struct RayHit {
 RayHit CreateRayHit() {
     RayHit hit;
     hit.position = float3(0.0f, 0.0f, 0.0f);
-    hit.distance = MAX;
+    hit.distance = 1.#INF;
     hit.normal = float3(0.0f, 0.0f, 0.0f);
     return hit;
 }
@@ -76,20 +71,39 @@ void Swap(inout float _a, inout float _b) {
     _b = temp;
 }
 
+float Sq(float _a) {
+    return _a * _a;
+}
+
+float Sqr(float _a) {
+    return _a / _a;
+}
+
 void AABBIntersect(Ray _ray, inout RayHit _rayHit, Cuboid _cuboid) {
+    float tXMin = (_cuboid.min.x - _ray.origin.x) / _ray.direction.x;
+    float tXMax = (_cuboid.max.x - _ray.origin.x) / _ray.direction.x;
 
-    float tXMin = (_cuboid.min.x - _ray.origin.x) / -_ray.direction.x;
-    float tXMax = (_cuboid.max.x - _ray.origin.x) / -_ray.direction.x;
+    float3 invDir = 1 / _ray.direction;
+    if (invDir.x >= 0) {
+        tXMin = (_cuboid.min.x - _ray.origin.x) / _ray.direction.x;
+        tXMax = (_cuboid.max.x - _ray.origin.x) / _ray.direction.x;
+    }
+    else {
+        tXMin = (_cuboid.max.x - _ray.origin.x) / _ray.direction.x;
+        tXMax = (_cuboid.min.x - _ray.origin.x) / _ray.direction.x;
+    }
 
+    float tYMin = (_cuboid.min.y - _ray.origin.y) / _ray.direction.y;
+    float tYMax = (_cuboid.max.y - _ray.origin.y) / _ray.direction.y;
 
-    if (tXMin > tXMax)
-        Swap(tXMin, tXMax);
-
-    float tYMin = (_cuboid.min.y - _ray.origin.y) / -_ray.direction.y;
-    float tYMax = (_cuboid.max.y - _ray.origin.y) / -_ray.direction.y;
-
-    if (tYMin > tYMax)
-        Swap(tYMin, tYMax);
+    if (invDir.y >= 0) {
+        tYMin = (_cuboid.min.y - _ray.origin.y) / _ray.direction.y;
+        tYMax = (_cuboid.max.y - _ray.origin.y) / _ray.direction.y;
+    }
+    else {
+        tYMin = (_cuboid.max.y - _ray.origin.y) / _ray.direction.y;
+        tYMax = (_cuboid.min.y - _ray.origin.y) / _ray.direction.y;
+    }
 
     if (tXMin > tYMax || tYMin > tXMax)
         return;
@@ -100,12 +114,18 @@ void AABBIntersect(Ray _ray, inout RayHit _rayHit, Cuboid _cuboid) {
     if (tYMax < tXMax)
         tXMax = tYMax;
 
-    float tZMin = (_cuboid.min.z - _ray.origin.z) / -_ray.direction.z;
-    float tZMax = (_cuboid.max.z - _ray.origin.z) / -_ray.direction.z;
+    float tZMin = (_cuboid.min.z - _ray.origin.z) / _ray.direction.z;
+    float tZMax = (_cuboid.max.z - _ray.origin.z) / _ray.direction.z;
     
 
-    if (tZMin > tZMax)
-        Swap(tZMin, tZMax);
+    if (invDir.z >= 0) {
+        tZMin = (_cuboid.min.z - _ray.origin.z) / _ray.direction.z;
+        tZMax = (_cuboid.max.z - _ray.origin.z) / _ray.direction.z;
+    }
+    else {
+        tZMin = (_cuboid.max.z - _ray.origin.z) / _ray.direction.z;
+        tZMax = (_cuboid.min.z - _ray.origin.z) / _ray.direction.z;
+    }
 
     if (tXMin > tZMax || tZMin > tXMax)
         return;
@@ -116,12 +136,15 @@ void AABBIntersect(Ray _ray, inout RayHit _rayHit, Cuboid _cuboid) {
     if (tZMax < tXMax)
         tXMax = tZMax;
 
-    float dist = (tXMin)+(tYMin)+(tZMin);
+    float3 dir = float3(_ray.direction.x * tXMin, _ray.direction.y * tYMin, _ray.direction.z * tZMin);
+
+
+    float dist = (tXMin + tYMin + tZMin);
     if (dist > _rayHit.distance || dist > 0)
         return;
-    _rayHit.normal = normalize(_rayHit.position - _ray.direction);
-    _rayHit.position = wallPositions.xyz;
     _rayHit.distance = dist;
+    _rayHit.position = _ray.origin + dist * _ray.direction;
+    _rayHit.normal = normalize(_rayHit.position - _ray.direction);
 }
 
 
@@ -148,7 +171,7 @@ RayHit Trace(Ray _ray) {
 }
 
 float3 Shade(inout Ray _ray, RayHit _rayHit) {
-    if (_rayHit.distance < MAX) {
+    if (_rayHit.distance < 1.#INF) {
         float3 specular = float3(0.6f, 0.6f, 0.6f);
         float3 albedo = float3(0.8f, 0.8f, 0.8f);
         _ray.origin = _rayHit.position + _rayHit.normal * 0.001f;
@@ -157,7 +180,7 @@ float3 Shade(inout Ray _ray, RayHit _rayHit) {
         bool shadow = false;
         Ray shadowRay = CreateRay(_rayHit.position + _rayHit.normal * 0.001f, -1 * directionalLight.xyz);
         RayHit shadowHit = Trace(shadowRay);
-        if (shadowHit.distance != MAX) {
+        if (shadowHit.distance != 1.#INF) {
             return float3(0.0f, 0.0f, 0.0f);
         }
         return saturate(dot(_rayHit.normal, directionalLight.xyz) * -1) * directionalLight.w * albedo;
