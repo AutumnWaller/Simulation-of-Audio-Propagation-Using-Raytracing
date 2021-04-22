@@ -1,0 +1,151 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+Texture2D<float4> Source;
+
+float4x4 WorldMatrix;
+float4x4 InverseProjectionMatrix;
+
+StructuredBuffer<float3> Vertices;
+StructuredBuffer<int> Indices;
+StructuredBuffer<float3> Normals;
+
+struct Ray{
+    float3 origin;
+    float3 direction;
+};
+
+Ray CreateRay(float3 _origin, float3 _direction){
+    Ray r;
+    r.origin = _origin;
+    r.direction = _direction;
+    return r;
+}
+
+Ray CreateCameraRay(float2 _uv) {
+    float3 origin = mul(WorldMatrix, float4(0.0f, 0.0f, 0.0f, 1.0f)).xyz;
+    float3 dir = mul(InverseProjectionMatrix, float4(_uv, 0.0f, 1.0f)).xyz;
+    dir = mul(WorldMatrix, float4(dir, 0.0f)).xyz;
+    dir = normalize(dir);
+    return CreateRay(origin, dir);
+}
+
+struct RayHit{
+
+    float distance;
+    float3 position;
+    float3 colour;
+    float3 normal;
+};
+
+RayHit CreateRayHit(){
+    RayHit hit;
+    hit.distance = 1.#INF;
+    hit.position = float3(0, 0, 0);
+    hit.colour = float3(1, 0, 1);
+    hit.normal = float3(0, 0, 0);
+    return hit;
+}
+
+struct ObjectInfo
+{
+    float4x4 localToWorldMatrix;
+    int startingIndex;
+    int indexCount;
+    int startingVertex;
+    int vertexCount;
+};
+
+StructuredBuffer<ObjectInfo> Objects;
+
+
+static const float EPSILON = 1e-8;
+
+bool IntersectTriangle(Ray _ray, float3 _vert0, float3 _vert1, float3 _vert2, inout float _t, inout float _u, inout float _v)
+{
+    float3 edge0 = _vert1 - _vert0;
+    float3 edge1 = _vert2 - _vert0;
+
+    float3 pVec = cross(_ray.direction, edge1);
+
+    float det = dot(edge0, pVec);
+
+    if (det < EPSILON)
+        return false;
+
+    float invDet = 1.0f / det;
+
+    float3 tVec = _ray.origin - _vert0;
+
+    _u = dot(tVec, pVec) * invDet;
+    if (_u < 0.0f || _u > 1.0f)
+        return false;
+
+    float3 qVec = cross(tVec, edge0);
+
+    _v = dot(_ray.direction, qVec) * invDet;
+    if (_v < 0.0f || _u + _v > 1.0f)
+        return false;
+
+    _t = dot(edge1, qVec) * invDet;
+
+    return true;
+
+}
+
+void IntersectMesh(Ray _ray, inout RayHit _rayHit, ObjectInfo _objectInfo){
+    uint offset = _objectInfo.startingIndex;
+    uint count = offset + _objectInfo.indexCount;
+    for(uint i = offset; i < count; i += 3){
+        float3 v0 = (mul(_objectInfo.localToWorldMatrix, float4(Vertices[Indices[i]], 1.0f))).xyz;
+        float3 v1 = (mul(_objectInfo.localToWorldMatrix, float4(Vertices[Indices[i + 1]], 1.0f))).xyz;
+        float3 v2 = (mul(_objectInfo.localToWorldMatrix, float4(Vertices[Indices[i + 2]], 1.0f))).xyz;
+        float t, u, v;
+        if(IntersectTriangle(_ray, v0, v1, v2, t, u, v)){
+            if(t > 0 && t < _rayHit.distance){
+                _rayHit.distance = t;
+                _rayHit.position = _ray.origin + t * _ray.direction;
+                _rayHit.normal = normalize(cross(v1 - v0, v2 - v0));
+                _rayHit.colour = float3(1, 0, 1);
+            }
+        }
+    }
+}
+
+
+
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint width, height;
+    Result.GetDimensions(width, height);
+    float2 uv = float2((id.xy + float2(0.5f, 0.5f)) / float2(width, height) * 2.0f - 1.0f);
+    Ray r = CreateCameraRay(uv);
+    RayHit hit = CreateRayHit();
+    hit.colour = float3(0, 0, 0);
+
+    float4 result = float4(Source[id.xy].xyz, 1.0f);
+    uint count, stride;
+    
+    Objects.GetDimensions(count, stride);
+    for(int i = 0; i < count; i++){
+        IntersectMesh(r, hit, Objects[i]);
+    }
+    
+    if(hit.distance != 1.#INF)
+        result.rgb = hit.colour;
+
+    // float dist = -r.origin.y / r.direction.y;
+    // if (dist >= 0 && dist < hit.distance) {
+    //     hit.distance = dist;
+    //     hit.position = r.origin + dist * r.direction;
+    //     hit.colour = float3(0.8f, 0.8f, 0.8f);
+    // }
+
+
+    Result[id.xy] = result;
+}

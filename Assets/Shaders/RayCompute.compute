@@ -1,4 +1,4 @@
-﻿// Each #kernel tells which function to compile; you can have many kernels
+// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 
 // Create a RenderTexture with enableRandomWrite flag and set it
@@ -38,6 +38,8 @@ struct RayHit {
     float3 position;
     float distance;
     float3 normal;
+    float3 albedo;
+    float3 specular;
 };
 
 RayHit CreateRayHit() {
@@ -45,6 +47,8 @@ RayHit CreateRayHit() {
     hit.position = float3(0.0f, 0.0f, 0.0f);
     hit.distance = 1.#INF;
     hit.normal = float3(0.0f, 0.0f, 0.0f);
+    hit.albedo = float3(0.0f, 0.0f, 0.0f);
+    hit.specular = float3(0.0f, 0.0f, 0.0f);
     return hit;
 }
 
@@ -150,6 +154,8 @@ void IntersectGroundPlane(Ray _ray, inout RayHit _rayHit) {
     if (dist > 0 && dist < _rayHit.distance) {
         _rayHit.distance = dist;
         _rayHit.position = _ray.origin + dist * _ray.direction;
+        _rayHit.specular = float3(0.01f, 0.01f, 0.01f);
+        _rayHit.albedo = float3(0.2f, 0.2f, 0.2f);
         _rayHit.normal = float3(0, 1, 0);
     }
 }
@@ -201,6 +207,9 @@ void IntersectMesh(Ray _ray, inout RayHit _rayHit, MeshObject _meshObject){
                 _rayHit.distance = t;
                 _rayHit.position = _ray.origin + t * _ray.direction;
                 _rayHit.normal = normalize(cross(v1 - v0, v2 - v0));
+                _rayHit.albedo = float3(0, 0, 0);
+                _rayHit.specular = 0.65f * float3(1.0f, 0.4f, 0.2f);
+
             }
         }
     }
@@ -210,7 +219,7 @@ RayHit Trace(Ray _ray) {
     RayHit rayHit = CreateRayHit();
     uint count, stride, i;
 
-    IntersectGroundPlane(_ray, rayHit);
+    //IntersectGroundPlane(_ray, rayHit);
     meshObjects.GetDimensions(count, stride);
     for(i = 0; i < count; i++){
         IntersectMesh(_ray, rayHit, meshObjects[i]);
@@ -220,8 +229,8 @@ RayHit Trace(Ray _ray) {
 
 float3 Shade(inout Ray _ray, RayHit _rayHit) {
     if (_rayHit.distance < 1.#INF) {
-        float3 specular = float3(0.2f, 0.2f, 0.2f);
-        float3 albedo = float3(0.5f, 0.5f, 0.5f);
+        float3 specular = _rayHit.specular;
+        float3 albedo = _rayHit.albedo;
         _ray.origin = _rayHit.position + _rayHit.normal * 0.001f;
         _ray.direction = reflect(_ray.direction, _rayHit.normal);
         _ray.energy *= specular;
@@ -256,11 +265,11 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     float3 result = float3(0, 0, 0);
     Ray r = CreateCameraRay(texCoords);
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 4; i++) {
         RayHit hit = Trace(r);
         result += r.energy * Shade(r, hit);
-        Lighting(directionalLight, hit);
-        if (r.energy.x == 0 && r.energy.y == 0 && r.energy.z == 0)
+        //Lighting(directionalLight, hit);
+        if (!any(r.energy))
             break;
     }
     Result[id.xy] = float4(result, 1);

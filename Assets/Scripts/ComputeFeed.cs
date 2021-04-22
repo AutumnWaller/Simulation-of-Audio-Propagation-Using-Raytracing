@@ -6,7 +6,7 @@ using UnityEngine;
 public class ComputeFeed : MonoBehaviour
 {
     public ComputeShader m_rtShader;
-    public Texture2D m_skyboxTexture, m_grassTexture;
+    public Texture2D m_skyboxTexture;
     private RenderTexture m_renderTarget;
     public Light m_lightSource;
 
@@ -100,7 +100,6 @@ public class ComputeFeed : MonoBehaviour
         {
             Mesh m = rto.GetComponent<MeshFilter>().sharedMesh;
 
-            int firstVert = m_vertices.Count;
             m_vertices.AddRange(m.vertices);
             int firstIndex = m_indices.Count;
             int[] indices = m.GetIndices(0);
@@ -114,7 +113,7 @@ public class ComputeFeed : MonoBehaviour
 
         }
         CreateComputeBuffer(ref m_meshObjectBuffer, m_meshObjects, 72);
-        CreateComputeBuffer(ref m_vertexBuffer, m_vertices, (4 * 3));
+        CreateComputeBuffer(ref m_vertexBuffer, m_vertices, 12);
         CreateComputeBuffer(ref m_indexBuffer, m_indices, 4);
     }
 
