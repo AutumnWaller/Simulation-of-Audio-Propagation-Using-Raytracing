@@ -36,7 +36,6 @@ Ray CreateCameraRay(float2 _uv) {
 
 
 struct RayHit{
-
     float distance;
     float3 position;
     float3 colour;
@@ -61,21 +60,9 @@ struct ObjectInfo
     int vertexCount;
 };
 
+
 StructuredBuffer<ObjectInfo> Objects;
-
-struct SoundSource{
-    float4x4 localToWorldMatrix;
-    float3 direction;
-};
-
-StructuredBuffer<SoundSource> SoundSources;
-
-Ray CreateSoundRay(SoundSource _source){
-    float3 origin = mul(_source.localToWorldMatrix, float4(0.0f, 0.0f, 0.0f, 1.0f)).xyz;
-    float3 dir = mul(_source.localToWorldMatrix, float4(_source.direction, 0.0f)).xyz;
-    dir = normalize(dir);
-    return CreateRay(origin, dir);
-}
+StructuredBuffer<ObjectInfo> SoundSourceObjects;
 
 static const float EPSILON = 1e-8;
 
@@ -130,17 +117,25 @@ void IntersectMesh(Ray _ray, inout RayHit _rayHit, ObjectInfo _objectInfo){
     }
 }
 
-void RayTrace(Ray _ray, inout RayHit _rayHit, int _count){
-    for(int i = 0; i < 5; i++){
+bool RayTrace(Ray _ray, inout RayHit _rayHit, int _count){
+    for(int i = 0; i < 10; i++){
         for(int j = 0; j < _count; j++){
             IntersectMesh(_ray, _rayHit, Objects[j]);
             if(_rayHit.distance != 1.#INF){
                 _rayHit.distance = 1.#INF;
+                IntersectMesh(_ray, _rayHit, SoundSourceObjects[0]);
+                if(_rayHit.distance != 1.#INF)
+                {
+                    _rayHit.colour = float3(0, 0, 1);
+                    return true;
+                }
+                _ray = CreateRay(_rayHit.position, reflect(_rayHit.position, _rayHit.normal));
                 break;
             }
         }
-        _ray = CreateRay(_rayHit.position, reflect(_rayHit.position, _rayHit.normal));
+
     }
+    return false;
 }
 
 
@@ -159,9 +154,19 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
         
     Objects.GetDimensions(count, stride);
-    RayTrace(r, hit, count);
+
+    for(int i = 0; i < count; i++){
+        IntersectMesh(r, hit, Objects[i]);
+    }
+
     if(hit.distance != 1.#INF)
-        result.rgb = float3(hit.normal);
+        result.rgb = hit.colour;
+
+    if(RayTrace(r, hit, count)){
+        result.rgb = hit.colour;
+    }
+    // if(hit.distance != 1.#INF)
+    //     result.rgb = float3(hit.normal);
     // float dist = -r.origin.y / r.direction.y;
     // if (dist >= 0 && dist < hit.distance) {
     //     hit.distance = dist;
