@@ -33,6 +33,8 @@ Ray CreateCameraRay(float2 _uv) {
     return CreateRay(origin, dir);
 }
 
+
+
 struct RayHit{
 
     float distance;
@@ -61,6 +63,19 @@ struct ObjectInfo
 
 StructuredBuffer<ObjectInfo> Objects;
 
+struct SoundSource{
+    float4x4 localToWorldMatrix;
+    float3 direction;
+};
+
+StructuredBuffer<SoundSource> SoundSources;
+
+Ray CreateSoundRay(SoundSource _source){
+    float3 origin = mul(_source.localToWorldMatrix, float4(0.0f, 0.0f, 0.0f, 1.0f)).xyz;
+    float3 dir = mul(_source.localToWorldMatrix, float4(_source.direction, 0.0f)).xyz;
+    dir = normalize(dir);
+    return CreateRay(origin, dir);
+}
 
 static const float EPSILON = 1e-8;
 
@@ -115,7 +130,18 @@ void IntersectMesh(Ray _ray, inout RayHit _rayHit, ObjectInfo _objectInfo){
     }
 }
 
-
+void RayTrace(Ray _ray, inout RayHit _rayHit, int _count){
+    for(int i = 0; i < 5; i++){
+        for(int j = 0; j < _count; j++){
+            IntersectMesh(_ray, _rayHit, Objects[j]);
+            if(_rayHit.distance != 1.#INF){
+                _rayHit.distance = 1.#INF;
+                break;
+            }
+        }
+        _ray = CreateRay(_rayHit.position, reflect(_rayHit.position, _rayHit.normal));
+    }
+}
 
 
 [numthreads(8,8,1)]
@@ -125,20 +151,17 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     Result.GetDimensions(width, height);
     float2 uv = float2((id.xy + float2(0.5f, 0.5f)) / float2(width, height) * 2.0f - 1.0f);
     Ray r = CreateCameraRay(uv);
+    uint count, stride;
+
     RayHit hit = CreateRayHit();
     hit.colour = float3(0, 0, 0);
-
     float4 result = float4(Source[id.xy].xyz, 1.0f);
-    uint count, stride;
-    
-    Objects.GetDimensions(count, stride);
-    for(int i = 0; i < count; i++){
-        IntersectMesh(r, hit, Objects[i]);
-    }
-    
-    if(hit.distance != 1.#INF)
-        result.rgb = hit.colour;
 
+        
+    Objects.GetDimensions(count, stride);
+    RayTrace(r, hit, count);
+    if(hit.distance != 1.#INF)
+        result.rgb = float3(hit.normal);
     // float dist = -r.origin.y / r.direction.y;
     // if (dist >= 0 && dist < hit.distance) {
     //     hit.distance = dist;
