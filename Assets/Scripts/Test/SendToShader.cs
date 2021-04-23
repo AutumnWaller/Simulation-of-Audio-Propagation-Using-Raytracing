@@ -19,6 +19,10 @@ public class SendToShader : MonoBehaviour
     public List<ObjectInfo> m_soundObjectInfo = new List<ObjectInfo>();
 
     public static List<MeshData> m_soundSourceObjects = new List<MeshData>();
+
+    List<ShaderOutput> m_output = new List<ShaderOutput>();
+
+
     public struct ObjectInfo
     {
         public Matrix4x4 localToWorldMatrix;
@@ -36,13 +40,17 @@ public class SendToShader : MonoBehaviour
         }
     }
 
+    struct ShaderOutput{
+        public Vector3 position;
+    }
+
     public ComputeShader m_computeShader;
     ComputeBuffer m_bufferVertices;
     ComputeBuffer m_bufferIndices;
     ComputeBuffer m_bufferNormals;
     ComputeBuffer m_bufferObjectInfo;
     ComputeBuffer m_bufferSoundSources;
-    
+    ComputeBuffer m_bufferOutput;
 
 
     RenderTexture m_RT;
@@ -54,6 +62,7 @@ public class SendToShader : MonoBehaviour
 
     void Awake(){
         m_camera = GetComponent<Camera>();
+
     }
 
     public static void AddMesh(MeshData _mesh){
@@ -82,6 +91,7 @@ public class SendToShader : MonoBehaviour
         m_normals.Clear();
         m_objects.Clear();
         m_soundObjectInfo.Clear();
+        m_output.Clear();
 
         int vertCount = 0, indexCount = 0;
         for(int i = 0; i < m_meshList.Count; i++){
@@ -104,6 +114,10 @@ public class SendToShader : MonoBehaviour
             indexCount += currMesh.indices.Count;
         }
 
+
+        ShaderOutput output = new ShaderOutput();
+        output.position = new Vector3();
+        m_output.Add(output);
         if(m_bufferVertices != null)
             m_bufferVertices.Release();
         if(m_bufferIndices != null)
@@ -120,19 +134,21 @@ public class SendToShader : MonoBehaviour
         m_bufferNormals = new ComputeBuffer(m_normals.Count, 12);
         m_bufferObjectInfo = new ComputeBuffer(m_objects.Count, 80);
         m_bufferSoundSources = new ComputeBuffer(m_soundObjectInfo.Count, 80);
-
+        m_bufferOutput = new ComputeBuffer(m_output.Count, 12);
 
         m_bufferVertices.SetData(m_vertices);
         m_bufferIndices.SetData(m_indices);
         m_bufferNormals.SetData(m_normals);
         m_bufferObjectInfo.SetData(m_objects);
         m_bufferSoundSources.SetData(m_soundObjectInfo);
+        m_bufferOutput.SetData(m_output);
 
         m_computeShader.SetBuffer(0, Shader.PropertyToID("Vertices"), m_bufferVertices);
         m_computeShader.SetBuffer(0, Shader.PropertyToID("Indices"), m_bufferIndices);
         m_computeShader.SetBuffer(0, Shader.PropertyToID("Normals"), m_bufferVertices);
         m_computeShader.SetBuffer(0, Shader.PropertyToID("Objects"), m_bufferObjectInfo);
         m_computeShader.SetBuffer(0, Shader.PropertyToID("SoundSourceObjects"), m_bufferSoundSources);
+        m_computeShader.SetBuffer(0, Shader.PropertyToID("Outputs"), m_bufferOutput);
 
     }
 
@@ -154,7 +170,20 @@ public class SendToShader : MonoBehaviour
         m_computeShader.SetTexture(0, "Source", _source);
         m_computeShader.SetTexture(0, "Result", m_RT);
         m_computeShader.Dispatch(0, Mathf.CeilToInt(Screen.width / 8), Mathf.CeilToInt(Screen.height / 8), 1);
+
+
         Graphics.Blit(m_RT, _destination);
+        Vector3[] positions = new Vector3[m_output.Count];
+        m_bufferOutput.GetData(positions);
+        for(int i = 0; i < m_output.Count; i++){
+            ShaderOutput o = new ShaderOutput();
+            o.position = positions[i];
+            m_output[i] = o;
+        }
+    }
+
+    void OnPostRender(){
+
 
     }
 

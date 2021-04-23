@@ -64,6 +64,12 @@ struct ObjectInfo
 StructuredBuffer<ObjectInfo> Objects;
 StructuredBuffer<ObjectInfo> SoundSourceObjects;
 
+struct Output{
+    float3 position;
+};
+
+RWStructuredBuffer<Output> Outputs;
+
 static const float EPSILON = 1e-8;
 
 bool IntersectTriangle(Ray _ray, float3 _vert0, float3 _vert1, float3 _vert2, inout float _t, inout float _u, inout float _v)
@@ -111,7 +117,7 @@ void IntersectMesh(Ray _ray, inout RayHit _rayHit, ObjectInfo _objectInfo){
                 _rayHit.distance = t;
                 _rayHit.position = _ray.origin + t * _ray.direction;
                 _rayHit.normal = normalize(cross(v1 - v0, v2 - v0));
-                _rayHit.colour = float3(1, 0, 1);
+                _rayHit.colour = float3(0.5f, 0.5f, 0.5f);
             }
         }
     }
@@ -159,12 +165,17 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         IntersectMesh(r, hit, Objects[i]);
     }
 
+
+    int2 pos = id.xy;
+
     if(hit.distance != 1.#INF)
         result.rgb = hit.colour;
 
     if(RayTrace(r, hit, count)){
         result.rgb = hit.colour;
+        Outputs[0].position.xyz = hit.position;
     }
+    Result[pos] = result;
     // if(hit.distance != 1.#INF)
     //     result.rgb = float3(hit.normal);
     // float dist = -r.origin.y / r.direction.y;
@@ -174,6 +185,4 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     //     hit.colour = float3(0.8f, 0.8f, 0.8f);
     // }
 
-
-    Result[id.xy] = result;
 }
