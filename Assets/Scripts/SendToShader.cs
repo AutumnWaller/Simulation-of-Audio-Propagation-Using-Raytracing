@@ -74,7 +74,18 @@ public class SendToShader : MonoBehaviour
     }
 
     private void Update(){
+        
         if(m_output.Count > 0){
+            RayOutput[] rays = new RayOutput[m_output.Count];
+            m_bufferOutput.GetData(rays);
+            for(int i = 0; i < m_output.Count; i++){
+                RayOutput o = new RayOutput();
+                o.origin = rays[i].origin;
+                o.direction = rays[i].direction;
+                o.bounces = rays[i].bounces;
+                o.totalDistance = rays[i].totalDistance;
+                m_output[i] = o;
+            }
             RaycastHit hit;
             if(Physics.Raycast(new Ray(m_output[0].origin, m_output[0].direction), out hit, 10)){
                 PlayRayAudio audio;
@@ -184,16 +195,7 @@ public class SendToShader : MonoBehaviour
 
 
         Graphics.Blit(m_RT, _destination);
-        RayOutput[] rays = new RayOutput[m_output.Count];
-        m_bufferOutput.GetData(rays);
-        for(int i = 0; i < m_output.Count; i++){
-            RayOutput o = new RayOutput();
-            o.origin = rays[i].origin;
-            o.direction = rays[i].direction;
-            o.bounces = rays[i].bounces;
-            o.totalDistance = rays[i].totalDistance;
-            m_output[i] = o;
-        }
+
     }
 
     void OnDisable(){

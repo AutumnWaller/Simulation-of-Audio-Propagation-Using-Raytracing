@@ -13,11 +13,12 @@ public class AudioManager : MonoBehaviour
         m_audioSource.clip = m_audioClips[0];
     }
 
+    private void Update() {
+        if(!m_audioSource.isPlaying){
+            m_audioSource.Play();
+        }
+    }
     public static void Play(float _distance){
-        if(m_audioSource.isPlaying)
-            return;
         m_audioSource.volume = (1 / (_distance * _distance) * 100);
-
-        m_audioSource.Play();
     }
 }
