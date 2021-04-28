@@ -1,0 +1,276 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+Texture2D<float4> skyboxTexture;
+SamplerState sampler_skyboxTexture;
+static const float PI = 3.14159265f;
+float4x4 worldMat;
+float4x4 inverseProjMat;
+float4 directionalLight;
+
+struct Ray {
+    float3 origin;
+    float3 direction;
+    float3 energy;
+};
+
+
+Ray CreateRay(float3 _origin, float3 _direction) {
+    Ray r;
+    r.origin = _origin;
+    r.direction = _direction;
+    r.energy = float3(1.0f, 1.0f, 1.0f);
+    return r;
+}
+
+Ray CreateCameraRay(float2 _texCoords) {
+    float3 origin = mul(worldMat, float4(0.0f, 0.0f, 0.0f, 1.0f)).xyz;
+    float3 dir = mul(inverseProjMat, float4(_texCoords, 0.0f, 1.0f)).xyz;
+    dir = mul(worldMat, float4(dir, 0.0f)).xyz;
+    dir = normalize(dir);
+    return CreateRay(origin, dir);
+}
+
+struct RayHit {
+    float3 position;
+    float distance;
+    float3 normal;
+    float3 albedo;
+    float3 specular;
+};
+
+RayHit CreateRayHit() {
+    RayHit hit;
+    hit.position = float3(0.0f, 0.0f, 0.0f);
+    hit.distance = 1.#INF;
+    hit.normal = float3(0.0f, 0.0f, 0.0f);
+    hit.albedo = float3(0.0f, 0.0f, 0.0f);
+    hit.specular = float3(0.0f, 0.0f, 0.0f);
+    return hit;
+}
+
+struct Cuboid {
+    float3 colour;
+    float3 min;
+    float3 max;
+};
+
+Cuboid CreateCuboid(float3 _min, float3 _max, float3 _colour) {
+    Cuboid cuboid;
+    cuboid.colour = _colour;
+    cuboid.min = _min;
+    cuboid.max = _max;
+
+    return cuboid;
+}
+
+struct MeshObject
+{
+    float4x4 localToWorldMatrix;
+    int indicesOffset;
+    int indicesCount;
+};
+
+StructuredBuffer<MeshObject> meshObjects;
+StructuredBuffer<float3> vertices;
+StructuredBuffer<int> indices;
+
+
+void Swap(inout float _a, inout float _b) {
+    float temp = _a;
+    _a = _b;
+    _b = temp;
+}
+
+
+
+
+void AABBIntersect(Ray _ray, inout RayHit _rayHit, Cuboid _cuboid) {
+
+    // float t0x = (_cuboid.min.x - _ray.origin.x) / -_ray.direction.x;
+    // float t1x = (_cuboid.max.x - _ray.origin.x) / -_ray.direction.x;
+
+    // float t0y = (_cuboid.min.y - _ray.origin.y) / -_ray.direction.y;
+    // float t1y = (_cuboid.max.y - _ray.origin.y) / -_ray.direction.y;
+
+    // float tMin = (t0x > t0y) ? t0x : t0y;
+    // float tMax = (t1x < t1y) ? t1x : t0y;
+
+    // if (tMin > tMax)
+    //     Swap(tMin, tMax);
+
+    // if (t0y > t1y)
+    //     Swap(t0y, t1y);
+
+    // float t0z = (_cuboid.min.z - _ray.origin.z) / -_ray.direction.z;
+    // float t1z = (_cuboid.max.z - _ray.origin.z) / -_ray.direction.z;
+
+    // if (t0z > t1z)
+    //     Swap(t0z, t1z);
+
+
+    // if (t0x > t1y || t0y > t1x)
+    //     return;
+    
+    // if (tMin > t1z || t0z > tMax)
+    //     return;
+
+    // if (t0z > tMin)
+    //     tMin = t0z;
+
+    // if (t1z < tMax)
+    //     tMax = t1z;
+
+    // //float tXMin = (_cuboid.min.x - _ray.origin.x) / -_ray.direction.x;
+    // //float tXMax = (_cuboid.max.x - _ray.origin.x) / -_ray.direction.x;
+
+    // //float tYMin = (_cuboid.min.y - _ray.origin.y) / -_ray.direction.y;
+    // //float tYMax = (_cuboid.max.y - _ray.origin.y) / -_ray.direction.y;
+
+    // //float tZMin = (_cuboid.min.z - _ray.origin.z) / -_ray.direction.z;
+    // //float tZMax = (_cuboid.max.z - _ray.origin.z) / -_ray.direction.z;
+
+    // //if (tXMin >= _cuboid.min.x && tXMin < _cuboid.max.x &&
+    // //    tYMin >= _cuboid.min.y && tYMin < _cuboid.max.y &&
+    // //    tZMin >= _cuboid.min.z && tZMin < _cuboid.max.z) {
+
+
+    // float dist =  sqrt((abs(t1x) - abs(t0x)) * ((abs(t1x) - abs(t0x))) + ((abs(t1y) - abs(t0y)) * (abs(t1y) - abs(t0y))) + ((abs(t1z) - abs(t0z)) * (abs(t1z) - abs(t0z))));
+    // dist = -dist;
+    // _rayHit.distance = dist;
+    // _rayHit.position = _ray.origin + dist * _ray.direction;
+    // _rayHit.normal = normalize(_rayHit.position - _ray.direction);
+    
+
+}
+
+
+
+void IntersectGroundPlane(Ray _ray, inout RayHit _rayHit) {
+    float dist = -_ray.origin.y / _ray.direction.y;
+    if (dist > 0 && dist < _rayHit.distance) {
+        _rayHit.distance = dist;
+        _rayHit.position = _ray.origin + dist * _ray.direction;
+        _rayHit.specular = float3(0.01f, 0.01f, 0.01f);
+        _rayHit.albedo = float3(0.2f, 0.2f, 0.2f);
+        _rayHit.normal = float3(0, 1, 0);
+    }
+}
+
+static const float EPSILON = 1e-8;
+
+bool IntersectTriangle(Ray _ray, float3 _vert0, float3 _vert1, float3 _vert2, inout float _t, inout float _u, inout float _v)
+{
+    float3 edge0 = _vert1 - _vert0;
+    float3 edge1 = _vert2 - _vert0;
+
+    float3 pVec = cross(_ray.direction, edge1);
+
+    float det = dot(edge0, pVec);
+
+    if (det < EPSILON)
+        return false;
+
+    float invDet = 1.0f / det;
+
+    float3 tVec = _ray.origin - _vert0;
+
+    _u = dot(tVec, pVec) * invDet;
+    if (_u < 0.0f || _u > 1.0f)
+        return false;
+
+    float3 qVec = cross(tVec, edge0);
+
+    _v = dot(_ray.direction, qVec) * invDet;
+    if (_v < 0.0f || _u + _v > 1.0f)
+        return false;
+
+    _t = dot(edge1, qVec) * invDet;
+
+    return true;
+
+}
+
+void IntersectMesh(Ray _ray, inout RayHit _rayHit, MeshObject _meshObject){
+    uint offset = _meshObject.indicesOffset;
+    uint count = offset + _meshObject.indicesCount;
+    for(uint i = offset; i < count; i += 3){
+        float3 v0 = (mul(_meshObject.localToWorldMatrix, float4(vertices[indices[i]], 1.0f))).xyz;
+        float3 v1 = (mul(_meshObject.localToWorldMatrix, float4(vertices[indices[i + 1]], 1.0f))).xyz;
+        float3 v2 = (mul(_meshObject.localToWorldMatrix, float4(vertices[indices[i + 2]], 1.0f))).xyz;
+        float t, u, v;
+        if(IntersectTriangle(_ray, v0, v1, v2, t, u, v)){
+            if(t > 0 && t < _rayHit.distance){
+                _rayHit.distance = t;
+                _rayHit.position = _ray.origin + t * _ray.direction;
+                _rayHit.normal = normalize(cross(v1 - v0, v2 - v0));
+                _rayHit.albedo = float3(0, 0, 0);
+                _rayHit.specular = 0.65f * float3(1.0f, 0.4f, 0.2f);
+
+            }
+        }
+    }
+}
+
+RayHit Trace(Ray _ray) {
+    RayHit rayHit = CreateRayHit();
+    uint count, stride, i;
+
+    //IntersectGroundPlane(_ray, rayHit);
+    meshObjects.GetDimensions(count, stride);
+    for(i = 0; i < count; i++){
+        IntersectMesh(_ray, rayHit, meshObjects[i]);
+    }
+    return rayHit;
+}
+
+float3 Shade(inout Ray _ray, RayHit _rayHit) {
+    if (_rayHit.distance < 1.#INF) {
+        float3 specular = _rayHit.specular;
+        float3 albedo = _rayHit.albedo;
+        _ray.origin = _rayHit.position + _rayHit.normal * 0.001f;
+        _ray.direction = reflect(_ray.direction, _rayHit.normal);
+        _ray.energy *= specular;
+        bool shadow = false;
+        Ray shadowRay = CreateRay(_rayHit.position + _rayHit.normal * 0.001f, -1 * directionalLight.xyz);
+        RayHit shadowHit = Trace(shadowRay);
+        if (shadowHit.distance != 1.#INF) {
+            return float3(0.0f, 0.0f, 0.0f);
+        }
+        return saturate(dot(_rayHit.normal, directionalLight.xyz) * -1) * directionalLight.w * albedo;
+    }
+    else {
+        _ray.energy = float3(0, 0, 0);
+        float theta = acos(_ray.direction.y) / -PI;
+        float phi = atan2(_ray.direction.x, _ray.direction.z) / -PI * 0.5f;
+        return skyboxTexture.SampleLevel(sampler_skyboxTexture, float2(phi, theta), 0).xyz;
+    }
+}
+
+void Lighting(float4 _light, inout RayHit _rayHit) {
+    _rayHit.normal -= saturate(dot(_rayHit.normal, _light.xyz) * -1);
+}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint width;
+    uint height;
+    Result.GetDimensions(width, height);
+    float2 texCoords = float2((id.xy + float2(0.5f, 0.5f)) / float2(width, height) * 2.0f - 1.0f);
+
+    float3 result = float3(0, 0, 0);
+    Ray r = CreateCameraRay(texCoords);
+
+    for (int i = 0; i < 4; i++) {
+        RayHit hit = Trace(r);
+        result += r.energy * Shade(r, hit);
+        //Lighting(directionalLight, hit);
+        if (!any(r.energy))
+            break;
+    }
+    Result[id.xy] = float4(result, 1);
+}
