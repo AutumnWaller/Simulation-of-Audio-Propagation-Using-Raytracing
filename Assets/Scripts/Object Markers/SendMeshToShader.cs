@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
     [RequireComponent(typeof(MeshRenderer))]
-public class AddToShader : MonoBehaviour
+public class SendMeshToShader : MonoBehaviour
 {
-    SendToShader.MeshData data;
+    ShaderDispatcher.MeshData data;
     void OnEnable(){
-        data = new SendToShader.MeshData();
+        data = new ShaderDispatcher.MeshData();
         data.vertices = new List<Vector3>();
         data.indices = new List<int>();
         data.normals = new List<Vector3>();
@@ -15,10 +15,10 @@ public class AddToShader : MonoBehaviour
         data.indices.AddRange(m.GetIndices(0));
         data.normals.AddRange(m.normals);
         data.localToWorldMatrix = transform.localToWorldMatrix;
-        SendToShader.AddMesh(data);
+        ShaderDispatcher.AddMesh(data);
     }
 
     void OnDisable(){
-        SendToShader.RemoveMesh(data);
+        ShaderDispatcher.RemoveMesh(data);
     }
 }

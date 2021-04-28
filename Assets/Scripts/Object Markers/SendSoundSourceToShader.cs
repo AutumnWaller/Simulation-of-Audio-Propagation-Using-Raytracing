@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class AddSoundSource : MonoBehaviour
+public class SendSoundSourceToShader : MonoBehaviour
 {
 
-    SendToShader.MeshData m_data;
+    ShaderDispatcher.MeshData m_data;
 
     void OnEnable(){
-        m_data = new SendToShader.MeshData();
+        m_data = new ShaderDispatcher.MeshData();
         m_data.vertices = new List<Vector3>();
         m_data.indices = new List<int>();
         m_data.normals = new List<Vector3>();
@@ -17,10 +17,10 @@ public class AddSoundSource : MonoBehaviour
         m_data.indices.AddRange(m.GetIndices(0));
         m_data.normals.AddRange(m.normals);
         m_data.localToWorldMatrix = transform.localToWorldMatrix;
-        SendToShader.AddSourceMesh(m_data);
+        ShaderDispatcher.AddSourceMesh(m_data);
     }
 
     void OnDisable(){
-        SendToShader.RemoveSourceMesh(m_data);
+        ShaderDispatcher.RemoveSourceMesh(m_data);
     }
 }

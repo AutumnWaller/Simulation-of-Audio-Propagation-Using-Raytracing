@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SendToShader : MonoBehaviour
+public class ShaderDispatcher : MonoBehaviour
 {
     public struct MeshData{
         public List<Vector3> vertices;

@@ -11,7 +11,17 @@ public class Testing : MonoBehaviour
     public List<float> m_fps = new List<float>();
     private void Update() {
         if(Input.GetKeyUp(KeyCode.Return)){
-            // LogToFile.ToggleRecording("A.txt");
+            StartFunctions();
+        }
+        if(Input.GetKeyUp(KeyCode.Escape)){
+            m_isRecording = false;
+            m_isWriting = false;
+        }
+    }
+
+
+    void StartFunctions(){
+                    // LogToFile.ToggleRecording("A.txt");
             Debug.Log("Toggled recording");
             if(!m_isRecording)
             {
@@ -22,13 +32,7 @@ public class Testing : MonoBehaviour
                 m_isWriting = true;
                 StartCoroutine("StoreData", "A.csv");
             }
-        }
-        if(Input.GetKeyUp(KeyCode.Escape)){
-            m_isRecording = false;
-            m_isWriting = false;
-        }
     }
-
 
     private IEnumerator RecordData(){
         float[] times = new float[5];
@@ -44,6 +48,7 @@ public class Testing : MonoBehaviour
             }
             average /= 5;
             m_fps.Add(average);
+            Debug.Log(m_fps.Count);
         }
         yield return null;
     }
@@ -59,7 +64,7 @@ public class Testing : MonoBehaviour
             float average = 0.0f;
             for(int i = 0; i < m_fps.Count; i++){
                 average += m_fps[i];
-                data.Add(i+1.ToString() + "," + m_fps[i].ToString());
+                data.Add((i+1).ToString() + "," + m_fps[i].ToString());
             }
             data.Add("Average" + "," + average / m_fps.Count);
 
