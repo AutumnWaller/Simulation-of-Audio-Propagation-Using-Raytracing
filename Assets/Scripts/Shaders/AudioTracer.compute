@@ -126,7 +126,7 @@ bool RayTrace(Ray _ray, inout RayHit _rayHit, int _count){
     Ray r = CreateRay(_ray.origin, _ray.direction);
 
         uint bounces =0, distance = 0;
-    //for(int i = 0; i < 10; i++, bounces++){
+    for(int i = 0; i < 50; i++, bounces++){
         RayHit hit = CreateRayHit();
         RayHit closestHit = hit;
         for(int j = 0; j < _count; j++){
@@ -152,17 +152,17 @@ bool RayTrace(Ray _ray, inout RayHit _rayHit, int _count){
         if(closestHit.distance < 1.#INF)
             distance += closestHit.distance;
         r = CreateRay(closestHit.position, normalize(reflect(r.direction, closestHit.normal)));
-    //}
+    }
     return false;
 }
 
 
-[numthreads(8,8,1)]
+[numthreads(1,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
     uint width, height;
     Result.GetDimensions(width, height);
-    float2 uv = float2(id.xy);
+    float2 uv = float2(id.xy % 5);
     Ray r = CreateCameraRay(uv);
     uint count, stride;
 
@@ -172,8 +172,6 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
         
     Objects.GetDimensions(count, stride);
-
-
 
     int2 pos = id.xy;
 

@@ -191,10 +191,10 @@ public class ShaderDispatcher : MonoBehaviour
         m_computeShader.SetMatrix("InverseProjectionMatrix", m_camera.projectionMatrix.inverse);
         m_computeShader.SetTexture(0, "Source", _source);
         m_computeShader.SetTexture(0, "Result", m_RT);
-        m_computeShader.Dispatch(0, Mathf.CeilToInt(Screen.width / 8), Mathf.CeilToInt(Screen.height / 8), 1);
-        List<RayOutput> rayOutput = new List<RayOutput>();
-        Graphics.Blit(m_RT, _destination);
-
+        m_computeShader.Dispatch(0, 1, 1, 1);
+        List<RayOutput> bounces = new List<RayOutput>();
+        m_bufferOutput.GetData(bounces.ToArray());
+        Graphics.Blit(_source, _destination);
     }
 
     void OnDisable(){

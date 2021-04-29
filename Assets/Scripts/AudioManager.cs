@@ -14,11 +14,14 @@ public class AudioManager : MonoBehaviour
     }
 
     private void Update() {
+        // if(!m_audioSource.isPlaying){
+        //     m_audioSource.Play();
+        // }
+    }
+    public static void Play(float _distance){
         if(!m_audioSource.isPlaying){
             m_audioSource.Play();
         }
-    }
-    public static void Play(float _distance){
         m_audioSource.volume = (1 / (_distance * _distance) * 100);
     }
 }
